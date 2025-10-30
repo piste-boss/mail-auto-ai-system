@@ -127,7 +127,7 @@ npm run dev
 - **Base directory**: `frontend`
 - **Build command**: `npm run build`
 - **Publish directory**: `dist`
-- SPA ルーティング用に `frontend/netlify.toml` を同梱（`/* → /index.html` の 200 リダイレクト）。
+- SPA ルーティング用にリポジトリ直下に `netlify.toml` を配置（`base="frontend"` ＋ `/* → /index.html` の 200 リダイレクト）。
 
 環境変数や API エンドポイントが追加された場合は Netlify 側の Build settings → Environment variables に登録します。
 
