@@ -1,104 +1,115 @@
 # Mail Auto AI System
 
-AI-assisted email response platform that drafts human-like replies to inbound inquiries (e.g., sent to `info@`) and supports both manual approval and automatic sending workflows.
+Mail Auto AI System は、`info@` のような共有メールアドレスに届いた問い合わせへ、Gemini 2.5 Flash を活用して人間らしい返信ドラフトを生成し、承認フローと自動送信の両方に対応できるプラットフォームです。
 
-## Vision
+## ビジョン
 
-- Deliver near-real-time responses without losing the personal tone of a human support agent.
-- Empower operators with an approval UI while preserving the option to bypass manual review when full automation is desired.
-- Centralize reference materials (emails, PDFs, screenshots, spreadsheets) so the AI can ground replies in company-approved knowledge.
+- 迅速な対応と人間味のある応対を両立させ、顧客体験を向上させる。
+- オペレーターの承認 UI を標準としつつ、完全自動送信モードも選べる柔軟さを提供する。
+- メール文面、PDF、スクリーンショット、スプレッドシートなど社内ナレッジを集約し、AI が一貫したトーンで回答できる基盤を整備する。
 
-## Core Capabilities
+## コア機能
 
-- Upload knowledge sources: past email threads, PDF guides, screenshots, and other reference assets that shape tone and content.
-- Sync with a structured knowledge base (e.g., Google Sheets) for product data, FAQs, escalation rules, and dynamic fields.
-- Generate reply drafts through an LLM that is prompted with the uploaded assets and spreadsheet knowledge.
-- Provide a “human-in-the-loop” interface with:
-  - `承認` button that instantly sends the draft email.
-  - Toggle-able “auto-send” mode for hands-off operation.
-- Allow operators to choose the “from” address per inbox or per reply.
-- Support optional signatures (per user or per mailbox) with merge fields.
+- 参考文面のアップロード（メール履歴、PDF、画像、ドキュメントなど）とメタデータ管理。
+- Google スプレッドシートなど構造化ナレッジとの同期（製品情報、FAQ、エスカレーションルール等）。
+- LLM（Gemini 2.5 Flash）による返信ドラフト生成と、トーン・敬語の調整。
+- `承認` ボタン付きの人間の確認フローと、ワンクリックで切り替えられる自動送信モード。
+- 返信元アドレス／署名の選択・テンプレート化（ユーザー単位・受信箱単位の設定を想定）。
 
-## Experience Overview
+## 体験フロー
 
-1. **Inbound**: Incoming inquiry is ingested (via IMAP/POP3 polling, webhook, or mail forwarding).
-2. **Drafting**: The system prepares a reply using the curated knowledge base and tone references.
-3. **Review** (default): Operator is notified, reviews the draft, edits if needed, and clicks `承認` to send.
-4. **Auto-send** (optional): If auto mode is enabled, the draft is dispatched immediately with audit logging.
+1. **受信**: IMAP/POP3 のポーリング、Webhook、メール転送などで問い合わせを取り込み。
+2. **ドラフト生成**: 取得した文面とアップロード済みナレッジを組み合わせ、AI が返信案を作成。
+3. **レビュー（既定）**: オペレーターが通知を受け、ドラフトを確認・微修正し `承認` を押して送信。
+4. **自動送信（任意）**: 自動送信モードが有効なスレッドは、レビューをスキップして即時送信。全履歴は監査ログに保存。
 
-## High-Level Architecture (Proposed)
+## ハイレベル・アーキテクチャ
 
-- **Mail Ingestion Layer**  
-  Connect to mailbox providers (Google Workspace, Microsoft 365, custom SMTP/IMAP) to fetch new inquiries and push approved replies.
+- **メール連携レイヤー**  
+  Google Workspace（Gmail API）、Microsoft 365（Graph API）、汎用 IMAP/SMTP（例: Xserver）、外部送信サービス（SendGrid/Mailgun/AWS SES など）をアダプタとして拡張できる設計。
 
-- **Knowledge Management**  
-  - File storage for uploaded reference materials, with metadata and versioning.  
-  - Spreadsheet integration (Google Sheets API) for dynamic knowledge rows.  
-  - Vector database or retrieval index to ground AI prompts with the latest information.
+- **ナレッジ管理**  
+  - 参考資料ファイルの保管とバージョン管理。  
+  - Google スプレッドシート API を介した構造化データ取得。  
+  - 必要に応じてベクトル DB を導入し、検索結果をプロンプトに注入。
 
-- **AI Drafting Service**  
-  - Prompt building that merges inquiry content, context, and retrieved knowledge.  
-  - LLM provider abstraction (OpenAI, Anthropic, etc.) with configurable model settings.  
-  - Tone calibration using sample emails or snippets extracted from uploaded references.
+- **AI ドラフティングサービス**  
+  - 問い合わせ内容、関連ナレッジ、トーン設定を統合したプロンプトを生成。  
+  - Gemini 2.5 Flash を標準実装しつつ、LLM 抽象レイヤーで将来のモデル差し替えも考慮。  
+  - サンプルメールやトーン定義をプロンプトに組み込み、表現の一貫性を担保。
 
-- **Workflow & Approval Engine**  
-  - Tracks each inquiry’s status (`drafting`, `awaiting approval`, `sent`, `auto-sent`).  
-  - Handles approval routing, auto-send toggles, and permission checks.  
-  - Logs all prompts, drafts, edits, and send events for auditing.
+- **ワークフロー & 承認エンジン**  
+  - ステータス管理（`drafting`、`awaiting approval`、`sent`、`auto-sent` など）。  
+  - 承認ルール、自動送信切り替え、権限チェック。  
+  - プロンプト、ドラフト、編集履歴、送信イベントの監査ログを保持。
 
-- **Web Application**  
-  - Dashboard of inbound inquiries, draft emails, and approval controls.  
-  - File upload interface for reference documents.  
-  - Settings pages for sender addresses, signatures, auto-send preferences, and knowledge sources.
+- **Web アプリケーション**  
+  - 受信一覧、ドラフト、承認待ちを確認するダッシュボード。  
+  - 参考資料アップロード UI。  
+  - 差出人アドレス、署名、自動送信ポリシー、ナレッジ連携の設定画面。
 
-- **Notification & Delivery**  
-  - Email/SMS/push alerts when drafts need approval.  
-  - Outbound mail delivery via chosen SMTP provider with DKIM/SPF alignment.  
-  - Bounced mail monitoring and retry policies.
+- **通知 & 配信**  
+  - 承認が必要な場合のメール / SMS / プッシュ通知。  
+  - DKIM/SPF 整合性を考慮した SMTP 送信。  
+  - バウンス検知と再送制御。
 
-## Configuration & Customization
+## 設定とカスタマイズ
 
-- **Sender Profiles**: Store multiple `from` addresses, display names, and signatures; allow per-inquiry overrides.
-- **Signature Management**: Text/HTML signatures with dynamic tokens (e.g., agent name, contact info).
-- **Knowledge Synchronization**: Scheduled refresh intervals for spreadsheets; manual refresh controls.
-- **Auto-Send Policy**: Global or per-mailbox setting; optional confidence thresholds that still route low-confidence drafts for approval.
-- **Audit Trails**: Immutable logs for compliance, including before/after drafts and approver identity.
+- **送信元プロファイル**: 複数の `From` アドレスと表示名、署名テンプレートを保存し、問い合わせごとに切り替え。
+- **署名管理**: テキスト/HTML 署名を管理し、担当者名や連絡先を差し込む変数に対応。
+- **ナレッジ同期**: スプレッドシートの定期同期や手動更新トリガーを用意。
+- **自動送信ポリシー**: 全体設定・受信箱単位設定・AI 信頼度しきい値などで制御。
+- **監査ログ**: 送信前後の文面、承認者、通知履歴を保存し、コンプライアンスやトラブルシュートに対応。
 
-## Security & Compliance Considerations
+## セキュリティとコンプライアンス
 
-- Access control for uploads, settings, and approvals (role-based permissions).  
-- Encryption at rest for stored knowledge assets and drafts.  
-- Secure OAuth credentials management for email and spreadsheet integrations.  
-- Logging and monitoring for unusual activity or failed send attempts.
+- アップロード、設定変更、承認といった権限をロールベースで制御。
+- ナレッジ資産やドラフトは暗号化して保存。
+- メール、スプレッドシート、LLM 連携の OAuth 資格情報を安全に管理。
+- 不審なアクティビティや送信失敗を検知し、通知と記録を行う。
 
-## Google Workspace MVP (Apps Script)
+## Google Workspace 向け MVP（Apps Script）
 
-For a fast, minimized prototype within the Google ecosystem:
+Google 生态内で迅速に試作する最小構成:
 
-1. **Gmail Label & Trigger**
-   - Use a Gmail filter so inquiries to `info@` (or target mailbox) receive a label such as `INFO_INBOX`.
-   - Run a time-driven Apps Script trigger (e.g., every 1–5 minutes) to scan the labeled threads.
-2. **Knowledge Sources**
-   - Maintain structured responses in a Google Sheet `Knowledge` tab (`key`, `content`, `tags`, etc.).
-   - Optionally parse Google Drive documents (text/Docs/PDF) to supply tone or policy snippets inside the prompt.
-3. **Draft Generation**
-   - Apps Script assembles the inquiry context + relevant knowledge and calls Gemini 2.5 Flash via `UrlFetchApp`.
-   - The AI response is saved to Gmail drafts and tracked in a `Pending` sheet with metadata (timestamp, confidence, thread ID).
-4. **Approval & Send**
-   - Provide a custom spreadsheet menu item (“承認して送信”) that reads the pending queue, sends the selected draft using GmailApp, and moves the row to a `Logs` sheet.
-   - Support an “auto-send” flag per inquiry or globally; when enabled, skip the pending queue and dispatch immediately.
-5. **Configuration**
-   - Store sender aliases and signatures in a `Settings` sheet; pull them into the draft before sending.
-   - Log status transitions (drafted, approved, auto-sent) for auditing inside the spreadsheet.
+1. **Gmail ラベル & トリガー**
+   - `info@` 宛メールに `INFO_INBOX` ラベルを自動付与（Gmail フィルタ）。  
+   - Apps Script の時間主導トリガー（1〜5 分ごと）でラベル付きスレッドを巡回。
+2. **ナレッジ取得**
+   - Google スプレッドシート `Knowledge` シートに key / content / tags を保存。  
+   - Google ドライブ上のドキュメントを読み込み、トーンやガイドラインを抽出。
+3. **ドラフト生成**
+   - 問い合わせとナレッジを整形し、Gemini 2.5 Flash に `UrlFetchApp` でリクエスト。  
+   - 生成文は Gmail の下書きに保存し、`Pending` シートにスレッド ID・信頼度などを記録。
+4. **承認 & 送信**
+   - スプレッドシートにカスタムメニュー「承認して送信」を追加し、選択行を GmailApp で送信。  
+   - 送信後は `Logs` シートへ移動し、監査ログを更新。  
+   - 自動送信フラグがオンの案件は下書きを経由せず即送信。
+5. **設定管理**
+   - `Settings` シートで差出人アドレス、署名、自動送信ポリシーを管理。  
+   - ステータス遷移や送信結果を記録し、後から参照できるようにする。
 
-This MVP keeps everything inside Google Workspace, reduces deployment friction, and allows quick iteration before expanding to a broader multi-provider architecture.
+この MVP により、構築コストを抑えつつワークフローを検証し、その後マルチプロバイダ構成へ段階的に拡張できる。
 
-## Open Questions & Next Steps
+## 一般ユーザー向けオンボーディング案
 
-- Confirm primary email provider(s) and preferred integration method (API vs. SMTP/IMAP).  
-- Decide on LLM provider(s) and hosting strategy (cloud vs. self-hosted).  
-- Determine required languages, tone presets, and fallback flows.  
-- Draft UI wireframes for the approval dashboard and auto-send toggles.  
-- Establish MVP milestones (ingestion, draft generation, manual approval, auto-send) and testing strategy.
+- **ステップガイド付きウィザード**  
+  1. メールプロバイダ選択（Gmail / Microsoft 365 / IMAP・SMTP）。  
+  2. 参考文面や資料のアップロード。  
+  3. スプレッドシート連携（OAuth 認可 → テンプレートコピー）。  
+  4. 差出人・署名・自動送信ポリシー設定。  
+  5. テスト送信で完了確認。
+- **自動設定**: OAuth 承認後、必要なラベル・フィルタ・Webhook・トリガーを自動作成。
+- **IMAP/SMTP 対応**: Xserver 等の独自ドメイン利用者向けに、接続情報入力で検証できるフォームと SPF/DKIM チェックリストを提供。
+- **プリセット提供**: トーンプリセット、署名テンプレート、FAQ シートなどをワンクリックで導入。
 
-This README will evolve as decisions are made regarding the tech stack, infrastructure, and rollout plan.
+## オープン課題と次のステップ
+
+- 主要メールプロバイダ（Gmail、Microsoft 365、Xserver 等）の優先順位と対応方法の確定。  
+- Graph API や汎用 IMAP アダプタなど、マルチプロバイダ対応インターフェースの設計。  
+- バックエンド技術スタック（例: Node.js/TypeScript）とデプロイ戦略の決定。  
+- 日本語・英語などマルチリンガル対応とトーンプリセットの定義。  
+- ダッシュボード／オンボーディング UI のワイヤーフレーム作成。  
+- MVP マイルストーン（受信→ドラフト→承認→自動送信）とテスト計画の策定。
+
+今後の議論や実装内容に応じて README を更新していきます。
