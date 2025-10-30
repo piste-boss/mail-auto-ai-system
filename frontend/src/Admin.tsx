@@ -2,6 +2,17 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import './Admin.css'
 
+type UserAccount = {
+  id: string
+  name: string
+  email: string
+  phone: string
+  address: string
+  role: string
+}
+
+type EditableUserFields = Omit<UserAccount, 'id'>
+
 const defaultPrompt = `You are an AI support assistant for AI Auto Mail System.
 - Always produce polite, empathetic business email responses.
 - Reference knowledge snippets provided in the context with bullet points.
@@ -18,7 +29,7 @@ function Admin() {
   const [userSheetLink, setUserSheetLink] = useState(
     'https://docs.google.com/spreadsheets/d/xxxxxxxxxxxxxxxxxxxx'
   )
-  const [userAccounts, setUserAccounts] = useState([
+  const [userAccounts, setUserAccounts] = useState<UserAccount[]>([
     {
       id: 'user-1',
       name: '石川 すぐる',
@@ -28,7 +39,7 @@ function Admin() {
       role: 'オペレーター'
     }
   ])
-  const [newUser, setNewUser] = useState({
+  const [newUser, setNewUser] = useState<EditableUserFields>({
     name: '',
     email: '',
     phone: '',
@@ -37,7 +48,11 @@ function Admin() {
   })
   const [status, setStatus] = useState('')
 
-  const updateUserField = (id: string, field: string, value: string) => {
+  const updateUserField = <K extends keyof EditableUserFields>(
+    id: string,
+    field: K,
+    value: EditableUserFields[K]
+  ) => {
     setUserAccounts((prev) =>
       prev.map((account) =>
         account.id === id ? { ...account, [field]: value } : account
@@ -55,7 +70,7 @@ function Admin() {
       setStatus('氏名とメールアドレスは必須です。')
       return
     }
-    const newAccount = {
+    const newAccount: UserAccount = {
       id: `user-${Date.now()}`,
       ...newUser
     }

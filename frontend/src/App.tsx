@@ -1,51 +1,75 @@
 import { useMemo, useState } from 'react'
+import type { DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import './App.css'
 
-function App() {
-  const inquiry = useMemo(
-    () => ({
-      subject: '【お問い合わせ】プレミアムプランの契約更新について',
-      sender: '山田 太郎 <taro@example.com>',
-      receivedAt: '2024-05-18 10:32',
-      body: `プレミアムプランを利用している山田です。更新のタイミングで請求書払いへ変更したいのですが可能でしょうか？\n\nまた、追加ユーザーを2名分増やした場合の料金も教えてください。`
-    }),
-    []
-  )
+type EmailThread = {
+  id: string
+  subject: string
+  sender: string
+  receivedAt: string
+  preview: string
+  body: string
+}
 
-  const knowledgeSnippets = useMemo(
+type InboundSettings = {
+  provider: string
+  forwardingAddress: string
+  mailboxUser: string
+  imapHost: string
+  imapPort: string
+  encryption: string
+  forwardingNote: string
+  mailboxNote: string
+}
+
+function App() {
+  const emails = useMemo<EmailThread[]>(
     () => [
       {
-        title: '請求書払いの可否',
-        content: '法人契約での継続利用に限り、次回更新から請求書払いへ変更できます。変更には社判済みの申請書が必要です。'
+        id: 'thread-1',
+        subject: '【お問い合わせ】プレミアムプランの契約更新について',
+        sender: '山田 太郎 <taro@example.com>',
+        receivedAt: '2024-05-18 10:32',
+        preview: 'プレミアムプランを利用している山田です。更新のタイミングで請求書払いへ変更したいのですが可能でしょうか？',
+        body: `プレミアムプランを利用している山田です。更新のタイミングで請求書払いへ変更したいのですが可能でしょうか？\n\nまた、追加ユーザーを2名分増やした場合の料金も教えてください。`
       },
       {
-        title: 'プレミアムプラン料金',
-        content: '基本料金: 39,800円/月。追加ユーザーは1人あたり 5,500円/月（税別）。'
+        id: 'thread-2',
+        subject: '【請求書再発行】4月分の再送をお願いします',
+        sender: '佐藤 友美 <yumi@example.co.jp>',
+        receivedAt: '2024-05-18 09:10',
+        preview: '4月分の請求書を受け取れていないようです。再発行をお願いしてもよろしいでしょうか？',
+        body: `AI Auto Mail System サポート御中\n\nお世話になっております。佐藤です。\n\n4月分の請求書が確認できていないようです。お手数ですが再発行いただいてもよろしいでしょうか？\n\nまた、PDF にパスワードが設定されている場合は別途共有いただけますと幸いです。\n\nよろしくお願いいたします。`
       },
       {
-        title: '対応トーン',
-        content: '既存顧客には丁寧かつ前向きなトーンで、対応ステップを箇条書きで示す。'
+        id: 'thread-3',
+        subject: '【機能相談】アカウント追加の方法について',
+        sender: '高橋 裕介 <yusuke@example.com>',
+        receivedAt: '2024-05-17 18:25',
+        preview: 'アカウント管理画面から追加する手順を教えてください。',
+        body: `お世話になっております。高橋です。\n\nアカウント管理画面からユーザーを追加する手順を教えてください。トライアル期間中でも追加はできますか？\n\n急ぎの案件で恐縮ですが、ご教示いただけると助かります。`
       }
     ],
     []
   )
 
-  const initialDraft = `山田 太郎 様
+  const [selectedEmailId, setSelectedEmailId] = useState(() => emails[0]?.id ?? '')
+  const [translation, setTranslation] = useState('')
+  const [summary, setSummary] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [isDropActive, setIsDropActive] = useState(false)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
-いつもご利用いただきありがとうございます。サポートの石川でございます。
+  const composeInitialDraft = (emailSubject: string) =>
+    `${emailSubject.replace('【', '').replace('】', '')}についてご連絡ありがとうございます。\n\n` +
+    'サポートの石川でございます。内容を確認のうえ、以下の通りご案内いたします。\n\n' +
+    '---\nここに回答内容を記載してください。\n---\n\n' +
+    'ご不明な点がございましたら、お気軽にお申し付けください。\n\n引き続きよろしくお願いいたします。'
 
-プレミアムプランのご契約更新に際し、請求書払いへの変更は可能でございます。お手数ですが、下記2点をご確認ください。
-・社判済みの請求書払い申請書をご提出ください（PDF 添付可）
-・次回更新日の5営業日前までにご返送ください
-
-また追加ユーザーについては、2名追加の場合 +11,000円/月（税別）となり、合計 50,800円/月 でご案内可能です。
-
-申請書式を添付しておりますので、ご記入後に本メールへご返信いただけますと幸いです。ご不明点があれば何なりとお申し付けください。
-
-引き続きよろしくお願いいたします。`
-
-  const [draft, setDraft] = useState(initialDraft)
+  const [draft, setDraft] = useState(
+    composeInitialDraft(emails[0]?.subject ?? 'お問い合わせ')
+  )
   const [autoSend, setAutoSend] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -62,6 +86,17 @@ function App() {
   const [useSignature, setUseSignature] = useState(true)
   const [language, setLanguage] = useState<'ja' | 'en' | 'zh' | 'custom'>('ja')
   const [customLanguage, setCustomLanguage] = useState('')
+  const [activeTab, setActiveTab] = useState<'inbox' | 'settings'>('inbox')
+  const [inboundSettings, setInboundSettings] = useState<InboundSettings>({
+    provider: 'Google Workspace',
+    forwardingAddress: 'info@company.co.jp',
+    mailboxUser: 'info@company.co.jp',
+    imapHost: 'imap.gmail.com',
+    imapPort: '993',
+    encryption: 'SSL/TLS',
+    forwardingNote: 'Gmail フィルタで INFO_INBOX ラベルを付与 → Apps Script で取得',
+    mailboxNote: ''
+  })
 
   const composedDraft = useMemo(() => {
     const base = draft.trimEnd()
@@ -79,6 +114,11 @@ function App() {
     return lines.join('\n\n').trimEnd()
   }, [draft, profileName, profileSignature, useName, useSignature])
 
+  const selectedEmail = useMemo(
+    () => emails.find((mail) => mail.id === selectedEmailId) ?? emails[0],
+    [emails, selectedEmailId]
+  )
+
   const handleApprove = () => {
     setIsSending(true)
     setStatusMessage('')
@@ -86,6 +126,17 @@ function App() {
       setStatusMessage(autoSend ? '自動送信モードで送信キューへ登録しました。' : '送信承認が完了しました。')
       setIsSending(false)
     }, 650)
+  }
+
+  const handleSelectEmail = (emailId: string) => {
+    setSelectedEmailId(emailId)
+    const email = emails.find((mail) => mail.id === emailId)
+    if (email) {
+      setDraft(composeInitialDraft(email.subject))
+      setTranslation('')
+      setSummary('')
+      setIsPreviewOpen(true)
+    }
   }
 
   const handleRegenerate = () => {
@@ -98,6 +149,74 @@ function App() {
   const handleSaveSettings = () => {
     setStatusMessage('システム設定を保存しました。（現在はローカル反映のみ）')
     setIsSettingsOpen(false)
+  }
+
+  const handleInboundSettingChange = <K extends keyof InboundSettings>(
+    field: K,
+    value: InboundSettings[K]
+  ) => {
+    setInboundSettings((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleInboundSave = () => {
+    setStatusMessage('受信設定を保存しました。（現在はローカル反映のみ）')
+  }
+
+  const handleTranslate = () => {
+    if (!selectedEmail?.body) {
+      setStatusMessage('翻訳するメール本文が見つかりません。')
+      return
+    }
+    setIsProcessing(true)
+    setTimeout(() => {
+      setTranslation(
+        '【日本語訳（ダミー）】\n' + selectedEmail.body.replace(/\n\n/g, '\n')
+      )
+      setStatusMessage('日本語訳を生成しました。（ダミー表示）')
+      setIsProcessing(false)
+    }, 600)
+  }
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDropActive(false)
+    const files = Array.from(event.dataTransfer.files)
+    if (!files.length) {
+      setStatusMessage('対応可能なファイルが見つかりませんでした。')
+      return
+    }
+    const fileNames = files.map((file) => file.name).join(', ')
+    setStatusMessage(`メールファイルを受信しました: ${fileNames}（解析は今後実装予定）`)
+  }
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    if (!isDropActive) {
+      setIsDropActive(true)
+    }
+  }
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDropActive(false)
+  }
+
+  const handleSummarize = () => {
+    if (!selectedEmail?.body) {
+      setStatusMessage('要約するメール本文が見つかりません。')
+      return
+    }
+    setIsProcessing(true)
+    setTimeout(() => {
+      setSummary(
+        '【要約（ダミー）】\n' +
+          '・請求書払いへの変更可否\n' +
+          '・追加ユーザー2名分の料金確認\n' +
+          '・申請書手順の案内が必要'
+      )
+      setStatusMessage('要約を生成しました。（ダミー表示）')
+      setIsProcessing(false)
+    }, 600)
   }
 
   return (
@@ -130,101 +249,318 @@ function App() {
         </div>
       </header>
 
-      <main className="content">
-        <section className="panel inquiry-panel">
-          <header>
-            <h2>受信メール</h2>
-            <span className="timestamp">{inquiry.receivedAt}</span>
-          </header>
-          <div className="inquiry-meta">
-            <div>
-              <span className="label">件名</span>
-              <p>{inquiry.subject}</p>
-            </div>
-            <div>
-              <span className="label">差出人</span>
-              <p>{inquiry.sender}</p>
-            </div>
-          </div>
-          <pre className="inquiry-body">{inquiry.body}</pre>
+      <div className="tab-bar">
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'inbox' ? 'active' : ''}`}
+          onClick={() => setActiveTab('inbox')}
+        >
+          受信メール
+        </button>
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          受信設定
+        </button>
+      </div>
 
-          <div className="knowledge">
-            <h3>参照ナレッジ</h3>
-            <ul>
-              {knowledgeSnippets.map((snippet) => (
-                <li key={snippet.title}>
-                  <strong>{snippet.title}</strong>
-                  <p>{snippet.content}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        <section className="panel draft-panel">
-          <header>
-            <div>
-              <h2>AI 下書き</h2>
-              <p className="description">必要に応じて編集した後、送信承認してください。</p>
-            </div>
-            <button type="button" className="ghost" onClick={handleRegenerate}>
-              再生成
-            </button>
-          </header>
-          <textarea
-            className="draft-editor"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            aria-label="返信ドラフト本文"
-          />
-
-          <div className="preview-block">
-            <div className="preview-header">
-              <h3>送信時プレビュー</h3>
-              <div className="toggle-stack">
-                <label className="toggle compact-toggle">
-                  <input
-                    type="checkbox"
-                    checked={useName}
-                    onChange={(event) => setUseName(event.target.checked)}
-                  />
-                  <span className="toggle-indicator" aria-hidden />
-                  <span className="toggle-label">氏名を反映</span>
-                </label>
-                <label className="toggle compact-toggle">
-                  <input
-                    type="checkbox"
-                    checked={useSignature}
-                    onChange={(event) => setUseSignature(event.target.checked)}
-                  />
-                  <span className="toggle-indicator" aria-hidden />
-                  <span className="toggle-label">署名を反映</span>
-                </label>
+      {activeTab === 'inbox' ? (
+        <main className="content inbox-view">
+          <section className="panel inbox-panel">
+            <header className="inbox-header">
+              <div className="inbox-header-group">
+                <h2>受信メール一覧</h2>
+                <span className="timestamp">最新 {emails[0]?.receivedAt}</span>
               </div>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  setStatusMessage('手動同期を実行しました。（ダミー動作）')
+                }}
+              >
+                手動同期
+              </button>
+            </header>
+            <div
+              className={`inbox-dropzone ${isDropActive ? 'active' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <p>メール（.eml / .msg / .pdf）をここにドロップして解析</p>
+              <span>自動転送に加えて、単発のメールをアップロードして処理する場合に利用します。</span>
             </div>
-            <pre>{composedDraft}</pre>
-          </div>
+            <div className="email-list">
+              {emails.map((mail) => (
+                <button
+                  key={mail.id}
+                  type="button"
+                  className={`email-item ${mail.id === selectedEmailId ? 'active' : ''}`}
+                  onClick={() => handleSelectEmail(mail.id)}
+                >
+                  <div className="email-item-header">
+                    <p className="email-item-subject">{mail.subject}</p>
+                    <span>{mail.receivedAt}</span>
+                  </div>
+                  <p className="email-item-preview">{mail.preview}</p>
+                  <p className="email-item-sender">{mail.sender}</p>
+                </button>
+              ))}
+            </div>
+          </section>
 
-          <footer className="actions">
-            <div className="status-message" aria-live="polite">
-              {statusMessage}
+          <section className="panel draft-panel">
+            <header>
+              <div>
+                <h2>AI 返信</h2>
+                <p className="description">
+                  選択したメールの内容を確認し、返信案を編集して承認してください。
+                </p>
+              </div>
+              <div className="header-actions">
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    navigator.clipboard
+                      .writeText(composedDraft)
+                      .then(() => setStatusMessage('返信文をコピーしました。'))
+                      .catch(() => setStatusMessage('コピーに失敗しました。'))
+                  }}
+                  disabled={!draft.trim()}
+                >
+                  コピー
+                </button>
+                <button type="button" className="ghost" onClick={handleRegenerate}>
+                  再生成
+                </button>
+              </div>
+            </header>
+
+            <textarea
+              className="draft-editor"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              aria-label="返信ドラフト本文"
+            />
+
+            <div className="preview-block">
+              <div className="preview-header">
+                <h3>送信時プレビュー</h3>
+                <div className="toggle-stack">
+                  <label className="toggle compact-toggle">
+                    <input
+                      type="checkbox"
+                      checked={useName}
+                      onChange={(event) => setUseName(event.target.checked)}
+                    />
+                    <span className="toggle-indicator" aria-hidden />
+                    <span className="toggle-label">氏名を反映</span>
+                  </label>
+                  <label className="toggle compact-toggle">
+                    <input
+                      type="checkbox"
+                      checked={useSignature}
+                      onChange={(event) => setUseSignature(event.target.checked)}
+                    />
+                    <span className="toggle-indicator" aria-hidden />
+                    <span className="toggle-label">署名を反映</span>
+                  </label>
+                </div>
+              </div>
+              <pre>{composedDraft}</pre>
             </div>
-            <div className="button-row">
-              <button type="button" className="ghost">
-                ドラフト保存
+
+            <footer className="actions">
+              <div className="status-message" aria-live="polite">
+                {statusMessage}
+              </div>
+              <div className="button-row">
+                <button type="button" className="ghost">
+                  ドラフト保存
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={handleApprove}
+                  disabled={isSending}
+                >
+                  {isSending ? '送信処理中…' : '送信'}
+                </button>
+              </div>
+            </footer>
+          </section>
+        </main>
+      ) : (
+        <main className="content settings-view">
+          <section className="panel inbound-panel">
+            <header>
+              <div>
+                <h2>受信設定</h2>
+                <p className="description">
+                  メール転送や接続に必要な情報を入力してください。保存すると Admin 管理のスプレッドシートへ反映する想定です。
+                </p>
+              </div>
+            </header>
+
+            <div className="settings-grid">
+              <label className="field">
+                <span>メールプロバイダ</span>
+                <select
+                  value={inboundSettings.provider}
+                  onChange={(event) => handleInboundSettingChange('provider', event.target.value)}
+                >
+                  <option value="Google Workspace">Google Workspace (Gmail)</option>
+                  <option value="Microsoft 365">Microsoft 365 (Exchange)</option>
+                  <option value="Xserver">Xserver</option>
+                  <option value="Custom IMAP/SMTP">その他 IMAP / SMTP</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>転送先メールアドレス</span>
+                <input
+                  type="email"
+                  value={inboundSettings.forwardingAddress}
+                  onChange={(event) =>
+                    handleInboundSettingChange('forwardingAddress', event.target.value)
+                  }
+                />
+                <small>問い合わせメールを転送する先（例: info@company.co.jp）。</small>
+              </label>
+              <label className="field">
+                <span>IMAP ユーザー名</span>
+                <input
+                  type="text"
+                  value={inboundSettings.mailboxUser}
+                  onChange={(event) =>
+                    handleInboundSettingChange('mailboxUser', event.target.value)
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>IMAP ホスト</span>
+                <input
+                  type="text"
+                  value={inboundSettings.imapHost}
+                  onChange={(event) => handleInboundSettingChange('imapHost', event.target.value)}
+                  placeholder="imap.example.com"
+                />
+              </label>
+              <label className="field">
+                <span>IMAP ポート</span>
+                <input
+                  type="text"
+                  value={inboundSettings.imapPort}
+                  onChange={(event) => handleInboundSettingChange('imapPort', event.target.value)}
+                  placeholder="993"
+                />
+              </label>
+              <label className="field">
+                <span>暗号化方式</span>
+                <select
+                  value={inboundSettings.encryption}
+                  onChange={(event) => handleInboundSettingChange('encryption', event.target.value)}
+                >
+                  <option value="SSL/TLS">SSL/TLS</option>
+                  <option value="STARTTLS">STARTTLS</option>
+                  <option value="None">なし</option>
+                </select>
+              </label>
+              <label className="field field-wide">
+                <span>転送ルール・備考</span>
+                <textarea
+                  rows={3}
+                  value={inboundSettings.forwardingNote}
+                  onChange={(event) =>
+                    handleInboundSettingChange('forwardingNote', event.target.value)
+                  }
+                />
+                <small>例: 「info@→INFO_INBOX ラベル」「自動返信をオフにする」などの運用メモ。</small>
+              </label>
+              <label className="field field-wide">
+                <span>接続に関する補足</span>
+                <textarea
+                  rows={3}
+                  value={inboundSettings.mailboxNote}
+                  onChange={(event) =>
+                    handleInboundSettingChange('mailboxNote', event.target.value)
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="settings-actions">
+              <div className="status-message" aria-live="polite">
+                {statusMessage}
+              </div>
+              <button type="button" className="primary" onClick={handleInboundSave}>
+                受信設定を保存
+              </button>
+            </div>
+          </section>
+        </main>
+      )}
+
+      {isPreviewOpen && selectedEmail && (
+        <div className="preview-floating" role="dialog" aria-modal="false">
+          <header className="preview-header-bar">
+            <div>
+              <h3>{selectedEmail.subject}</h3>
+              <p className="email-meta">
+                {selectedEmail.sender} ｜ {selectedEmail.receivedAt}
+              </p>
+            </div>
+            <div className="detail-actions">
+              <button
+                type="button"
+                className="ghost"
+                onClick={handleTranslate}
+                disabled={isProcessing}
+              >
+                翻訳
               </button>
               <button
                 type="button"
-                className="primary"
-                onClick={handleApprove}
-                disabled={isSending}
+                className="ghost"
+                onClick={handleSummarize}
+                disabled={isProcessing}
               >
-                {isSending ? '送信処理中…' : autoSend ? '承認して自動送信へ' : '送信承認'}
+                要約
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setIsPreviewOpen(false)}
+                aria-label="プレビューを閉じる"
+              >
+                ×
               </button>
             </div>
-          </footer>
-        </section>
-      </main>
+          </header>
+          <div className="preview-body">
+            <pre className="email-body">{selectedEmail.body}</pre>
+            {(translation || summary) && (
+              <div className="analysis-panel">
+                {translation && (
+                  <section>
+                    <h4>日本語訳</h4>
+                    <pre>{translation}</pre>
+                  </section>
+                )}
+                {summary && (
+                  <section>
+                    <h4>要約</h4>
+                    <pre>{summary}</pre>
+                  </section>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <footer className="app-footer">
         <p>承認後は Gmail の下書き / スプレッドシート「Pending」に即時反映されます。</p>
