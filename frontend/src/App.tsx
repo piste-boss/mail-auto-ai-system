@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { API_BASE_URL } from './config';
 import type { DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import './App.css'
@@ -21,11 +22,14 @@ type InboundSettings = {
   encryption: string
   forwardingNote: string
   mailboxNote: string
+  username: string
+  password: string
+  phonenumber: string
+  email: string
 }
 
 function App() {
-  const emails = useMemo<EmailThread[]>(
-    () => [
+  const [emails, setEmails] = useState<EmailThread[]>(() => [
       {
         id: 'thread-1',
         subject: '【お問い合わせ】プレミアムプランの契約更新について',
@@ -50,9 +54,7 @@ function App() {
         preview: 'アカウント管理画面から追加する手順を教えてください。',
         body: `お世話になっております。高橋です。\n\nアカウント管理画面からユーザーを追加する手順を教えてください。トライアル期間中でも追加はできますか？\n\n急ぎの案件で恐縮ですが、ご教示いただけると助かります。`
       }
-    ],
-    []
-  )
+    ])
 
   const [selectedEmailId, setSelectedEmailId] = useState(() => emails[0]?.id ?? '')
   const [translation, setTranslation] = useState('')
@@ -95,8 +97,24 @@ function App() {
     imapPort: '993',
     encryption: 'SSL/TLS',
     forwardingNote: 'Gmail フィルタで INFO_INBOX ラベルを付与 → Apps Script で取得',
-    mailboxNote: ''
+    mailboxNote: '',
+    username: '',
+    password: '',
+    phonenumber: '',
+    email: ''
   })
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getSettings`)
+        const data = await res.json()
+        setInboundSettings((prev) => ({ ...prev, ...data }))
+      } catch (error) {
+        console.error('設定の取得に失敗しました', error)
+      }
+    })()
+  }, [])
 
   const composedDraft = useMemo(() => {
     const base = draft.trimEnd()
@@ -158,8 +176,36 @@ function App() {
     setInboundSettings((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleInboundSave = () => {
-    setStatusMessage('受信設定を保存しました。（現在はローカル反映のみ）')
+  const handleInboundSave = async () => {
+    try {
+      setStatusMessage('保存中...')
+      const res = await fetch(`${API_BASE_URL}?action=saveSettings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          origin: window.location.origin
+        },
+        body: JSON.stringify(inboundSettings)
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || '保存に失敗しました')
+      setStatusMessage('受信設定を保存しました。')
+    } catch (error) {
+      setStatusMessage(String(error))
+    }
+  }
+
+  const handleManualSync = async () => {
+    try {
+      setStatusMessage('同期中...')
+      const res = await fetch(`${API_BASE_URL}?action=manualSync`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || '同期に失敗しました')
+      setEmails(transformThreadsToEmails(data.threads || []))
+      setStatusMessage(`手動同期完了（${data.count ?? 0} 件）`)
+    } catch (error) {
+      setStatusMessage(String(error))
+    }
   }
 
   const handleTranslate = () => {
@@ -277,9 +323,7 @@ function App() {
               <button
                 type="button"
                 className="ghost"
-                onClick={() => {
-                  setStatusMessage('手動同期を実行しました。（ダミー動作）')
-                }}
+                onClick={handleManualSync}
               >
                 手動同期
               </button>
@@ -705,3 +749,14 @@ function App() {
 }
 
 export default App
+
+function transformThreadsToEmails(threads: any[]): EmailThread[] {
+  return threads.map((thread) => ({
+    id: String(thread.id ?? Math.random().toString(36).slice(2)),
+    subject: thread.subject || '',
+    sender: thread.sender || '',
+    receivedAt: thread.date ? new Date(thread.date).toLocaleString('ja-JP') : '',
+    preview: thread.snippet || '',
+    body: thread.body || thread.snippet || ''
+  }))
+}

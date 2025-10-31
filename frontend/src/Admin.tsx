@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { API_BASE_URL } from './config';
 import { Link } from 'react-router-dom'
 import './Admin.css'
 
@@ -85,8 +86,32 @@ function Admin() {
     setStatus('ユーザーを追加しました。（現在はダミー保存）')
   }
 
-  const handleSave = () => {
-    setStatus('管理設定を保存しました。（現在はダミー保存）')
+  const handleSave = async () => {
+    try {
+      setStatus('保存中...')
+      const payload = {
+        userSheetLink,
+        accounts: userAccounts,
+        geminiKey,
+        autoSendThreshold,
+        systemPrompt,
+        fallbackPrompt
+      }
+
+      const res = await fetch(`${API_BASE_URL}?action=saveSettings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          origin: window.location.origin
+        },
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || '保存に失敗しました')
+      setStatus('管理設定を保存しました。')
+    } catch (error) {
+      setStatus(String(error))
+    }
   }
 
   return (
