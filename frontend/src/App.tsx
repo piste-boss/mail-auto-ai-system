@@ -104,10 +104,13 @@ function App() {
     email: ''
   })
 
+  const buildApiUrl = (action: string) =>
+    `${API_BASE_URL}?action=${action}&origin=${encodeURIComponent(window.location.origin)}`
+
   useEffect(() => {
     ;(async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}?action=getSettings`)
+        const res = await fetch(buildApiUrl('getSettings'))
         const data = await res.json()
         setInboundSettings((prev) => ({ ...prev, ...data }))
       } catch (error) {
@@ -179,11 +182,10 @@ function App() {
   const handleInboundSave = async () => {
     try {
       setStatusMessage('保存中...')
-      const res = await fetch(`${API_BASE_URL}?action=saveSettings`, {
+      const res = await fetch(buildApiUrl('saveSettings'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          origin: window.location.origin
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(inboundSettings)
       })
@@ -198,7 +200,7 @@ function App() {
   const handleManualSync = async () => {
     try {
       setStatusMessage('同期中...')
-      const res = await fetch(`${API_BASE_URL}?action=manualSync`)
+      const res = await fetch(buildApiUrl('manualSync'))
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || '同期に失敗しました')
       setEmails(transformThreadsToEmails(data.threads || []))

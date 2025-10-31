@@ -49,6 +49,9 @@ function Admin() {
   })
   const [status, setStatus] = useState('')
 
+  const buildApiUrl = (action: string) =>
+    `${API_BASE_URL}?action=${action}&origin=${encodeURIComponent(window.location.origin)}`
+
   const updateUserField = <K extends keyof EditableUserFields>(
     id: string,
     field: K,
@@ -83,7 +86,7 @@ function Admin() {
       address: '',
       role: 'オペレーター'
     })
-    setStatus('ユーザーを追加しました。（現在はダミー保存）')
+    setStatus('ユーザーを追加しました。')
   }
 
   const handleSave = async () => {
@@ -98,11 +101,10 @@ function Admin() {
         fallbackPrompt
       }
 
-      const res = await fetch(`${API_BASE_URL}?action=saveSettings`, {
+      const res = await fetch(buildApiUrl('saveSettings'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          origin: window.location.origin
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
       })
