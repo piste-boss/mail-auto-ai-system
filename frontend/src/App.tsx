@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { API_BASE_URL } from './config';
+import { initApiBase, getApiBase } from './apiBase';
 import type { DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import './App.css'
@@ -104,10 +104,24 @@ function App() {
     email: ''
   })
 
+  const [apiBase, setApiBase] = useState(() => getApiBase())
+
   const buildApiUrl = (action: string) =>
-    `${API_BASE_URL}?action=${action}&origin=${encodeURIComponent(window.location.origin)}`
+    `${apiBase}?action=${action}&origin=${encodeURIComponent(window.location.origin)}`
 
   useEffect(() => {
+    initApiBase()
+    setApiBase(getApiBase())
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      setApiBase(detail)
+    }
+    window.addEventListener('api-base-changed', handler)
+    return () => window.removeEventListener('api-base-changed', handler)
+  }, [])
+
+  useEffect(() => {
+    if (!apiBase) return
     ;(async () => {
       try {
         const res = await fetch(buildApiUrl('getSettings'))
@@ -117,7 +131,7 @@ function App() {
         console.error('設定の取得に失敗しました', error)
       }
     })()
-  }, [])
+  }, [apiBase])
 
   const composedDraft = useMemo(() => {
     const base = draft.trimEnd()

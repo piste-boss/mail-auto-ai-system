@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { API_BASE_URL } from './config';
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import './Admin.css'
+import { getApiBase, setApiBase } from './apiBase'
 
 type UserAccount = {
   id: string
@@ -48,9 +48,19 @@ function Admin() {
     role: 'オペレーター'
   })
   const [status, setStatus] = useState('')
+  const [apiEndpoint, setApiEndpoint] = useState(() => getApiBase())
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      setApiEndpoint(detail)
+    }
+    window.addEventListener('api-base-changed', handler)
+    return () => window.removeEventListener('api-base-changed', handler)
+  }, [])
 
   const buildApiUrl = (action: string) =>
-    `${API_BASE_URL}?action=${action}&origin=${encodeURIComponent(window.location.origin)}`
+    `${apiEndpoint}?action=${action}&origin=${encodeURIComponent(window.location.origin)}`
 
   const updateUserField = <K extends keyof EditableUserFields>(
     id: string,
@@ -116,6 +126,16 @@ function Admin() {
     }
   }
 
+  const handleApiEndpointSave = () => {
+    const trimmed = apiEndpoint.trim()
+    if (!trimmed) {
+      setStatus('GAS エンドポイントを入力してください。')
+      return
+    }
+    setApiBase(trimmed)
+    setStatus('GAS エンドポイントを更新しました。')
+  }
+
   return (
     <div className="admin-shell">
       <header className="admin-header">
@@ -155,6 +175,19 @@ function Admin() {
             />
             <small>値を超えたドラフトのみ自動送信モードへ流します。</small>
           </label>
+          <label className="admin-field">
+            <span>GAS エンドポイント URL</span>
+            <input
+              type="text"
+              value={apiEndpoint}
+              onChange={(event) => setApiEndpoint(event.target.value)}
+              placeholder="https://script.google.com/macros/s/.../exec"
+            />
+            <small>バックエンドの Apps Script ウェブアプリ URL（/exec まで）を入力してください。</small>
+          </label>
+          <button type="button" className="ghost" onClick={handleApiEndpointSave}>
+            GAS エンドポイントを更新
+          </button>
         </section>
 
         <section className="admin-card">
