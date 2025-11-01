@@ -59,8 +59,15 @@ function Admin() {
     return () => window.removeEventListener('api-base-changed', handler)
   }, [])
 
-  const buildApiUrl = (action: string) =>
-    `${apiEndpoint}?action=${action}&origin=${encodeURIComponent(window.location.origin)}`
+  const buildApiUrl = (action?: string, extraParams: Record<string, string> = {}) => {
+    const params = new URLSearchParams({
+      origin: window.location.origin,
+      v: Date.now().toString(),
+      ...extraParams
+    })
+    if (action) params.set('action', action)
+    return `${apiEndpoint}?${params.toString()}`
+  }
 
   const updateUserField = <K extends keyof EditableUserFields>(
     id: string,
@@ -114,7 +121,7 @@ function Admin() {
       const res = await fetch(buildApiUrl('saveSettings'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'text/plain'
         },
         body: JSON.stringify(payload)
       })

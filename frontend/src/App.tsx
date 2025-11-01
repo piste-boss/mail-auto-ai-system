@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { initApiBase, getApiBase } from './apiBase';
+import { initApiBase, getApiBase } from './apiBase'
 import type { DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import './App.css'
@@ -106,8 +106,15 @@ function App() {
 
   const [apiBase, setApiBase] = useState(() => getApiBase())
 
-  const buildApiUrl = (action: string) =>
-    `${apiBase}?action=${action}&origin=${encodeURIComponent(window.location.origin)}`
+  const buildApiUrl = (action?: string, extraParams: Record<string, string> = {}) => {
+    const params = new URLSearchParams({
+      origin: window.location.origin,
+      v: Date.now().toString(),
+      ...extraParams
+    })
+    if (action) params.set('action', action)
+    return `${apiBase}?${params.toString()}`
+  }
 
   useEffect(() => {
     initApiBase()
@@ -199,7 +206,7 @@ function App() {
       const res = await fetch(buildApiUrl('saveSettings'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'text/plain'
         },
         body: JSON.stringify(inboundSettings)
       })
