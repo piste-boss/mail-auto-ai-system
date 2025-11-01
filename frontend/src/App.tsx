@@ -28,6 +28,36 @@ type InboundSettings = {
   email: string
 }
 
+const inboundSettingKeys: (keyof InboundSettings)[] = [
+  'provider',
+  'forwardingAddress',
+  'mailboxUser',
+  'imapHost',
+  'imapPort',
+  'encryption',
+  'forwardingNote',
+  'mailboxNote',
+  'username',
+  'password',
+  'phonenumber',
+  'email'
+]
+
+const inboundDefaults: InboundSettings = {
+  provider: 'Google Workspace',
+  forwardingAddress: 'info@company.co.jp',
+  mailboxUser: 'info@company.co.jp',
+  imapHost: 'imap.gmail.com',
+  imapPort: '993',
+  encryption: 'SSL/TLS',
+  forwardingNote: 'Gmail フィルタで INFO_INBOX ラベルを付与 → Apps Script で取得',
+  mailboxNote: '',
+  username: '',
+  password: '',
+  phonenumber: '',
+  email: ''
+}
+
 function App() {
   const [emails, setEmails] = useState<EmailThread[]>(() => [
       {
@@ -90,18 +120,7 @@ function App() {
   const [customLanguage, setCustomLanguage] = useState('')
   const [activeTab, setActiveTab] = useState<'inbox' | 'settings'>('inbox')
   const [inboundSettings, setInboundSettings] = useState<InboundSettings>({
-    provider: 'Google Workspace',
-    forwardingAddress: 'info@company.co.jp',
-    mailboxUser: 'info@company.co.jp',
-    imapHost: 'imap.gmail.com',
-    imapPort: '993',
-    encryption: 'SSL/TLS',
-    forwardingNote: 'Gmail フィルタで INFO_INBOX ラベルを付与 → Apps Script で取得',
-    mailboxNote: '',
-    username: '',
-    password: '',
-    phonenumber: '',
-    email: ''
+    ...inboundDefaults
   })
 
   const [apiBase, setApiBase] = useState(() => getApiBase())
@@ -133,7 +152,28 @@ function App() {
       try {
         const res = await fetch(buildApiUrl('getSettings'))
         const data = await res.json()
-        setInboundSettings((prev) => ({ ...prev, ...data }))
+        if (!res.ok) {
+          throw new Error(data?.message || '設定の取得に失敗しました')
+        }
+
+        const inboundSource =
+          (data && typeof data === 'object' && data.inbound) ??
+          (data && typeof data === 'object' && data.inboundSettings) ??
+          (data && typeof data === 'object' && data.result) ??
+          null
+
+        if (inboundSource && typeof inboundSource === 'object') {
+          setInboundSettings((prev) => {
+            const next: InboundSettings = { ...prev }
+            inboundSettingKeys.forEach((key) => {
+              const value = inboundSource[key as keyof typeof inboundSource]
+              if (typeof value !== 'undefined') {
+                next[key] = String(value ?? '')
+              }
+            })
+            return next
+          })
+        }
       } catch (error) {
         console.error('設定の取得に失敗しました', error)
       }
@@ -203,16 +243,20 @@ function App() {
   const handleInboundSave = async () => {
     try {
       setStatusMessage('保存中...')
+      const payload: Record<string, unknown> = {
+        action: 'saveSettings',
+        origin: window.location.origin
+      }
+      inboundSettingKeys.forEach((key) => {
+        payload[key] = inboundSettings[key]
+      })
+
       const res = await fetch(buildApiUrl('saveSettings'), {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain'
         },
-        body: JSON.stringify({
-          action: 'saveSettings',
-          origin: window.location.origin,
-          ...inboundSettings
-        }),
+        body: JSON.stringify(payload),
         credentials: 'omit'
       })
       const data = await res.json()
@@ -560,6 +604,50 @@ function App() {
                   onChange={(event) =>
                     handleInboundSettingChange('mailboxNote', event.target.value)
                   }
+                />
+              </label>
+              <label className="field">
+                <span>IMAP ログインユーザー名</span>
+                <input
+                  type="text"
+                  value={inboundSettings.username}
+                  onChange={(event) =>
+                    handleInboundSettingChange('username', event.target.value)
+                  }
+                  placeholder="info@company.co.jp"
+                />
+              </label>
+              <label className="field">
+                <span>IMAP パスワード / アプリパス</span>
+                <input
+                  type="password"
+                  value={inboundSettings.password}
+                  onChange={(event) =>
+                    handleInboundSettingChange('password', event.target.value)
+                  }
+                  placeholder="アプリパスワードを入力"
+                />
+              </label>
+              <label className="field">
+                <span>通知用電話番号</span>
+                <input
+                  type="tel"
+                  value={inboundSettings.phonenumber}
+                  onChange={(event) =>
+                    handleInboundSettingChange('phonenumber', event.target.value)
+                  }
+                  placeholder="03-1234-5678"
+                />
+              </label>
+              <label className="field">
+                <span>通知用メールアドレス</span>
+                <input
+                  type="email"
+                  value={inboundSettings.email}
+                  onChange={(event) =>
+                    handleInboundSettingChange('email', event.target.value)
+                  }
+                  placeholder="support@example.com"
                 />
               </label>
             </div>
