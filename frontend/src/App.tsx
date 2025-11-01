@@ -208,7 +208,12 @@ function App() {
         headers: {
           'Content-Type': 'text/plain'
         },
-        body: JSON.stringify(inboundSettings)
+        body: JSON.stringify({
+          action: 'saveSettings',
+          origin: window.location.origin,
+          ...inboundSettings
+        }),
+        credentials: 'omit'
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || '保存に失敗しました')
@@ -221,7 +226,7 @@ function App() {
   const handleManualSync = async () => {
     try {
       setStatusMessage('同期中...')
-      const res = await fetch(buildApiUrl('manualSync'))
+      const res = await fetch(buildApiUrl('manualSync'), { credentials: 'omit' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || '同期に失敗しました')
       setEmails(transformThreadsToEmails(data.threads || []))

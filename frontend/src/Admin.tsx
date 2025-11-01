@@ -123,7 +123,12 @@ function Admin() {
         headers: {
           'Content-Type': 'text/plain'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          action: 'saveSettings',
+          origin: window.location.origin,
+          ...payload
+        }),
+        credentials: 'omit'
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || '保存に失敗しました')

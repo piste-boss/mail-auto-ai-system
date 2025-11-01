@@ -21,6 +21,7 @@ async function testPost() {
   const url = `${BASE}?origin=${encodeURIComponent(ORIGIN)}&v=${Date.now()}`;
   const payload = {
     action: 'login',
+    origin: ORIGIN,
     email: 'dummy@example.com',
     password: 'dummy-password'
   };
